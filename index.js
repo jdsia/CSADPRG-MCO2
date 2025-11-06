@@ -5,6 +5,8 @@
 
 const readlineSync = require('readline-sync')
 const fs = require("fs")
+const csvParser = require("csv-parse");
+
 
 class App {
   constructor() {
@@ -48,10 +50,20 @@ class App {
 
   // handle csv parser?
   handleReadCSV() {
+    const result = [];
+
+    fs.createReadStream("./dpwh_flood_control_projects.csv")
+      .pipe(csvParser())
+      .on("data", (data) => {
+        result.push(data);
+      })
+      .on("end", () => {
+        console.log(result);
+      })
 
   }
 }
 
-
+// start the app
 const app = new App();
 app.start()
