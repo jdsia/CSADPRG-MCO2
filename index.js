@@ -5,12 +5,27 @@
 
 const readlineSync = require('readline-sync')
 const fs = require("fs")
-const csvParser = require("csv-parse");
+const { parse } = require('csv-parse/sync');
 
+class DataManager {
+  loadData(filePath) {
+    const content = fs.readFileSync(filePath, 'utf8')
+    const records = parse(content, {
+      columns: true,
+      skip_empty_lines: true
+    })
+    console.log(`loaded ${records.length} records.`)
+    return records;
+  }
+
+
+}
 
 class App {
   constructor() {
     this.isRunning = true;
+    this.dataManager = new DataManager();
+    this.data = [];
   }
 
 
@@ -41,6 +56,7 @@ class App {
         break;
       case '2':
         console.log("choice 2");
+        this.handleDisplayCSV()
         break;
       case '3':
         console.log("Process Terminated");
@@ -48,20 +64,17 @@ class App {
     }
   }
 
-  // handle csv parser?
   handleReadCSV() {
-    const result = [];
-
-    fs.createReadStream("./dpwh_flood_control_projects.csv")
-      .pipe(csvParser())
-      .on("data", (data) => {
-        result.push(data);
-      })
-      .on("end", () => {
-        console.log(result);
-      })
-
+    const filePath = './dpwh_flood_control_projects.csv';
+    this.data = this.dataManager.loadData(filePath);
+    console.log('file loaded!')
   }
+
+  handleDisplayCSV() {
+    console.log('sample record', this.data[0]);
+  }
+
+
 }
 
 // start the app
