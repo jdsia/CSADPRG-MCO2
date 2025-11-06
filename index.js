@@ -3,11 +3,12 @@
 //Paradigm(s): OOP 
 //********************
 
-const readlineSync = require('readline-sync')
+const readlineSync = require('readline-sync');
 const fs = require("fs")
 const { parse } = require('csv-parse/sync');
 
 class DataManager {
+  // Loads data from the csv file
   loadData(filePath) {
     const content = fs.readFileSync(filePath, 'utf8')
     const records = parse(content, {
@@ -79,4 +80,5 @@ class App {
 
 // start the app
 const app = new App();
+// entry point?
 app.start()
