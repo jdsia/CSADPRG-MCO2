@@ -203,9 +203,12 @@ class App {
     console.log('file loaded!')
   }
 
+  // Generate records. Have helper class to handle the display of records, and just call it.
   handleDisplayCSV() {
     // Right now just loads the first entry form the data.
-    console.log('sample record', this.data[0]);
+    for (let j = 0; j <= 10; j++) {
+    console.log('sample record', this.data[j]);
+    }
   }
 
 

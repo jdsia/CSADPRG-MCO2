@@ -8,27 +8,27 @@
 - [X] Log total record count to console
 
 ### REQ-0002
-- [ ] Implement data validation function
-  - [ ] Detect missing or invalid fields (e.g., blank date, null lat/long)
-  - [ ] Log count of invalid entries
-  - [ ] Skip or correct malformed rows
+- [X] Implement data validation function
+  - [X] Detect missing or invalid fields (e.g., blank date, null lat/long)
+  - [X] Log count of invalid entries
+  - [X] Skip or correct malformed rows
 
 ###  REQ-0003
-- [ ] Implement filtering for projects from **2021–2023**
-  - [ ] Exclude 2024 and beyond
-  - [ ] Verify correct date parsing from CSV
+- [X] Implement filtering for projects from **2021–2023**
+  - [X] Exclude 2024 and beyond
+  - [X] Verify correct date parsing from CSV
 
 ###  REQ-0004
-- [ ] Compute derived fields
-  - [ ] `CostSavings = ApprovedBudgetForContract - ContractCost`
-  - [ ] `CompletionDelayDays = days between StartDate and ActualCompletionDate`
-  - [ ] Store derived values back into each record
+- [X] Compute derived fields
+  - [X] `CostSavings = ApprovedBudgetForContract - ContractCost`
+  - [X] `CompletionDelayDays = days between StartDate and ActualCompletionDate`
+  - [X] Store derived values back into each record
 
 ###  REQ-0005
-- [ ] Clean and standardize data
-  - [ ] Convert financial fields to float (PHP)
-  - [ ] Parse date fields into date objects
-  - [ ] Impute or remove rows with incomplete data (e.g., missing lat/long)
+- [X] Clean and standardize data
+  - [X] Convert financial fields to float (PHP)
+  - [X] Parse date fields into date objects
+  - [X] Impute or remove rows with incomplete data (e.g., missing lat/long)
 
 ---
 
