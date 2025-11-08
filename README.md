@@ -7,24 +7,24 @@
 - [X] Confirm dataset reads successfully (≈9,800+ rows)
 - [X] Log total record count to console
 
-### ⏳ REQ-0002
+### REQ-0002
 - [ ] Implement data validation function
   - [ ] Detect missing or invalid fields (e.g., blank date, null lat/long)
   - [ ] Log count of invalid entries
   - [ ] Skip or correct malformed rows
 
-### ⏳ REQ-0003
+###  REQ-0003
 - [ ] Implement filtering for projects from **2021–2023**
   - [ ] Exclude 2024 and beyond
   - [ ] Verify correct date parsing from CSV
 
-### ⏳ REQ-0004
+###  REQ-0004
 - [ ] Compute derived fields
   - [ ] `CostSavings = ApprovedBudgetForContract - ContractCost`
   - [ ] `CompletionDelayDays = days between StartDate and ActualCompletionDate`
   - [ ] Store derived values back into each record
 
-### ⏳ REQ-0005
+###  REQ-0005
 - [ ] Clean and standardize data
   - [ ] Convert financial fields to float (PHP)
   - [ ] Parse date fields into date objects
@@ -34,7 +34,9 @@
 
 ## Managing Report Generation
 
-### ⏳ REQ-0006
+- maybe do one class for report generation, and have a helper function method for each report.
+
+###  REQ-0006
 - [ ] Generate **Report 1: Regional Flood Mitigation Efficiency Summary**
   - [ ] Aggregate totals by Region and MainIsland
   - [ ] Compute median CostSavings, average CompletionDelayDays
@@ -42,7 +44,7 @@
   - [ ] Compute EfficiencyScore = `(median savings / average delay) * 100`, normalized 0–100
   - [ ] Output as sorted CSV (descending by EfficiencyScore)
 
-### ⏳ REQ-0007
+###  REQ-0007
 - [ ] Generate **Report 2: Top Contractors Performance Ranking**
   - [ ] Rank top 15 contractors (≥5 projects)
   - [ ] Compute:
@@ -54,7 +56,7 @@
   - [ ] Flag contractors with ReliabilityIndex <50 as “High Risk”
   - [ ] Output as sorted CSV
 
-### ⏳ REQ-0008
+###  REQ-0008
 - [ ] Generate **Report 3: Annual Project Type Cost Overrun Trends**
   - [ ] Group by FundingYear and TypeOfWork
   - [ ] Compute:
@@ -64,7 +66,7 @@
     - [ ] Year-over-year % change in average savings (baseline 2021)
   - [ ] Output as sorted CSV (ascending by year, descending by AvgSavings)
 
-### ⏳ REQ-0009
+###  REQ-0009
 - [ ] Generate **summary.json**
   - [ ] Include total projects, contractors, provinces
   - [ ] Global average delay, total savings
@@ -74,11 +76,11 @@
 
 ## Technical Specifications
 
-### ⏳ REQ-0010
+###  REQ-0010
 - [ ] Implement in **JavaScript**
 - [ ] Ensure equivalent outputs in R, Kotlin, and Rust (if required for submission)
 
-### ⏳ REQ-0011
+###  REQ-0011
 - [ ] Standardize all report outputs
   - [ ] CSV formatting: comma-separated, rounded to 2 decimals
   - [ ] Single run command: `node index.js`
