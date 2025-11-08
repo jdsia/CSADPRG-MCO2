@@ -114,6 +114,43 @@ class DataManager {
     return records
   }
 
+  // REQ-0005 
+  cleanData(records) {
+    // Map creates a new array with normalized versions of each record
+    const cleaned = records.map(r => ({
+      ...r, // Copy all existing properties first
+
+      // Convert financial fields and derived fields to consistent numeric type
+      ApprovedBudgetForContract: Number(r.ApprovedBudgetForContract),
+      ContractCost: Number(r.ContractCost),
+      CostSavings: Number(r.CostSavings),
+      CompletionDelayDays: Number(r.CompletionDelayDays),
+
+      // Convert date strings to Date objects for consistent processing later
+      StartDate: parseISO(r.StartDate),
+      ActualCompletionDate: parseISO(r.ActualCompletionDate)
+    }));
+
+    // Inform the user that normalization is done
+    console.log('Data cleaned and normalized.');
+
+    // Return the cleaned dataset
+    return cleaned;
+  }
+
+  // helper function to clean data
+  processData(filePath) {
+    let data = this.loadData(filePath);
+    data = this.validateData(data);
+    data = this.filterByYear(data);
+    data = this.computeDerivedFields(data);
+    data = this.cleanData(data);
+    console.log('Data has been processed!')
+
+    return data;
+  }
+
+
 }
 
 class App {
@@ -140,11 +177,11 @@ class App {
     console.log("Flood Control App");
     console.log("[1] Load the File");
     console.log("[2] Generate Reports")
-    
+
   }
 
   handleMainMenuChoice(choice) {
-    switch(choice) {
+    switch (choice) {
       case '1':
         console.log("choice 1");
         this.handleReadCSV();
@@ -162,7 +199,7 @@ class App {
 
   handleReadCSV() {
     const filePath = './dpwh_flood_control_projects.csv';
-    this.data = this.dataManager.loadData(filePath);
+    this.data = this.dataManager.processData(filePath);
     console.log('file loaded!')
   }
 
