@@ -81,11 +81,23 @@ class DataManager {
     return valid;
   }
 
+  // REQ-0003
+  filterByYear(records, startYear = 2021, endYear = 2023) {
+    const filtered = records.filter(r => {
+      const year = Number(r.FundingYear)
+      return year >= startYear && year <= endYear;
+    });
 
+    console.log(`Filtered records (FundingYear ${startYear}-${endYear}): ${filtered.length}`);
 
+    return filtered;
+  }
 
-
-
+  // REQ-0004 
+  // Provision to compute CostSavings, CompletionDelayDays
+  computeDerivedFields(records) {
+    
+  }
 
 }
 
