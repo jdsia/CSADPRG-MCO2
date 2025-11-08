@@ -96,7 +96,22 @@ class DataManager {
   // REQ-0004 
   // Provision to compute CostSavings, CompletionDelayDays
   computeDerivedFields(records) {
-    
+    // 2 variables, budget and cost
+    for (const r of records) {
+      const budget = Number(r.ApprovedBudgetForContract);
+      const cost = Number(r.ContractCost);
+
+      // parse dates
+      const start = parseISO(r.StartDate);
+      const end = parseISO(r.ActualCompletionDate);
+
+      r.CostSavings = budget - cost;
+      r.CompletionDelayDays = differenceInDays(end, start)
+    }
+
+    console.log("Derived fields computed");
+
+    return records
   }
 
 }
