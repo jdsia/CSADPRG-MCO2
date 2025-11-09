@@ -10,6 +10,13 @@ const { parse } = require('csv-parse/sync');
 const { parseISO, isValid, differenceInDays } = require('date-fns');
 
 
+const { writeToPath } = require('@fast-csv/format');
+const path = require('path');
+const { error } = require('console');
+const { finished } = require('stream');
+
+
+
 class DataManager {
   // Loads data from the csv file
   // REQ 0001
@@ -153,6 +160,13 @@ class DataManager {
 
 }
 
+// Class
+// Contains logic for generating reports
+
+
+
+
+// App Class
 class App {
   constructor() {
     this.isRunning = true;
@@ -161,7 +175,7 @@ class App {
   }
 
 
-  start() {
+  async start() {
     while (this.isRunning) {
       this.displayMainMenu()
       let choice = readlineSync.question("Please choose from Options [1] -> [2]: ");
@@ -169,7 +183,7 @@ class App {
         console.log("Invalid choice. Please choose a number from 1 to 2");
         choice = readlineSync.question("Please choose from Options [1] -> [2]: ");
       }
-      this.handleMainMenuChoice(choice);
+      await this.handleMainMenuChoice(choice);
     }
   }
 
@@ -180,7 +194,7 @@ class App {
 
   }
 
-  handleMainMenuChoice(choice) {
+  async handleMainMenuChoice(choice) {
     switch (choice) {
       case '1':
         console.log("choice 1");
@@ -188,7 +202,8 @@ class App {
         break;
       case '2':
         console.log("choice 2");
-        this.handleDisplayCSV()
+        //this.handleDisplayCSV();
+        await this.writeCsvFile(this.data)
         break;
       case '3':
         console.log("Process Terminated");
@@ -206,8 +221,37 @@ class App {
   // Generate records. Have helper class to handle the display of records, and just call it.
   handleDisplayCSV() {
     // Right now just loads the first entry form the data.
-    for (let j = 0; j <= 10; j++) {
-    console.log('sample record', this.data[j]);
+    //for (let j = 0; j <= 2; j++) {
+    //console.log('sample record', this.data[j]);
+    //}
+    console.log(this.data)
+  }
+
+  async writeCsvFile(data, fileName = "test.csv") {
+    if (!data || data.length === 0) {
+      console.log('Error: the "data" array is empty. Nothing to write')
+      return;
+    }
+    const outputPath = path.resolve(__dirname, fileName);
+    console.log(`Data has ${data.length} items. Writing to file!`)
+
+    // wrap the write in a promise. await for the promise to resovle
+    try {
+      await new Promise((resolve, reject) => {
+        writeToPath(outputPath, data, {headers: true})
+        .on('error', (err) => {
+            // if fails, reject the promise
+            reject(err)
+          })
+        .on('finish', () =>{
+            resolve();
+          });
+      });
+
+
+    } catch (err) {
+      console.log('CSV Write Failed')
+      console.error(err)
     }
   }
 

@@ -1,3 +1,9 @@
+### Dependencies (not used yet)
+'npm install --save export-to-csv'
+- use this to export the array of objects to a csv file
+
+
+
 # TODO List — Flood Control Data Analysis Pipeline
 
 ## Managing Data Ingestion
