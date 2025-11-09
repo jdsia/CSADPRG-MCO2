@@ -1,4 +1,4 @@
-//********************
+!/********************
 //Last name: Sia (Lead), Sayat, Lim, Vanguardia Language: Javascript
 //Paradigm(s): OOP 
 //********************
@@ -162,6 +162,9 @@ class DataManager {
 
 // Class
 // Contains logic for generating reports
+class ReportManager {
+
+}
 
 
 
@@ -171,6 +174,7 @@ class App {
   constructor() {
     this.isRunning = true;
     this.dataManager = new DataManager();
+    this.reportManager = new ReportManager();
     this.data = [];
   }
 
@@ -244,6 +248,7 @@ class App {
             reject(err)
           })
         .on('finish', () =>{
+            console.log("CSV Write Successful!")
             resolve();
           });
       });
