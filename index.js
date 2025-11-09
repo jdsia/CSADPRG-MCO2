@@ -161,6 +161,48 @@ class DataManager {
 // Class
 // Contains logic for generating reports
 class ReportManager {
+  // Generates Report 1: Regional Flood Mitigation Efficiency SUmmary
+  generateEfficiencyReport(fileteredData) {
+
+    // === Step 1: Group projects by Region and MainIsland ===
+    
+    const groupedByRegion = fileteredData.reduce((acc, record) => {
+      const key = `${record.MainIsland|record.Region}`;
+
+      // if key doesnt exist in accumulator obj yet
+      if (!acc[key]) {
+        // ... then create it
+        acc[key] = {
+          MainIsland: record.MainIsland,
+          Region: record.Region,
+          projects: []
+        }
+      }
+
+      // add the current record into the right group 
+      acc[key].projects.push(record)
+
+      return acc;
+
+    }, {}) // start with an empty obj accumulator;
+
+  }
+
+  // Get Median Function
+  getMedian(numbers) {
+    if (!numbers.length) return 0;
+    
+    const sorted = numbers.slice().sort((a,b) => a - b);
+    const mid = Math.floor(sorted.length/2);
+
+    if (sorted.length % 2 === 0) {
+      return (sorted[mid - 1] + sorted[mid] / 2);
+    } else {
+      return sorted[mid];
+    }
+    
+  }
+
 
 }
 
