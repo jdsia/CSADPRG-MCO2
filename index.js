@@ -1,7 +1,5 @@
-!/********************
 //Last name: Sia (Lead), Sayat, Lim, Vanguardia Language: Javascript
 //Paradigm(s): OOP 
-//********************
 //
 
 const readlineSync = require('readline-sync');
@@ -266,4 +264,4 @@ class App {
 // start the app
 const app = new App();
 // entry point?
-app.start()
+app.start();
