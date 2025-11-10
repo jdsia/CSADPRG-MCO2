@@ -5,7 +5,7 @@
 const readlineSync = require('readline-sync');
 const fs = require("fs")
 const { parse } = require('csv-parse/sync');
-const { parseISO, isValid, differenceInDays, min } = require('date-fns');
+const { parseISO, isValid, differenceInDays, differenceInCalendarDays, min } = require('date-fns');
 
 
 const { writeToPath } = require('@fast-csv/format');
@@ -74,6 +74,14 @@ class DataManager {
         return false;
       }
 
+      // TODO - see if this fixes wrong data.
+      // A project cannot finish before it starts.
+      // Filter out this illogical data.
+      if (differenceInDays(end, start) < 0) {
+        invalidCount++;
+        return false; // Exclude this row
+      }
+
       // If all checks passed, keep this record
       return true;
     });
@@ -111,7 +119,10 @@ class DataManager {
       const end = parseISO(r.ActualCompletionDate);
 
       r.CostSavings = budget - cost;
-      r.CompletionDelayDays = differenceInDays(end, start)
+      //r.CompletionDelayDays = differenceInDays(end, start)
+      //r.CompletionDelayDays = differenceInDays(end, start)
+      r.CompletionDelayDays = differenceInCalendarDays(end,start)
+      //r.CompletionDelayDays = differenceInDays(start, end)
     }
 
     console.log("Derived fields computed");
@@ -267,9 +278,6 @@ class ReportManager {
 
 
 }
-
-
-
 
 // App Class
 class App {
