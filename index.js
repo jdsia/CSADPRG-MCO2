@@ -5,7 +5,7 @@
 const readlineSync = require('readline-sync');
 const fs = require("fs")
 const { parse } = require('csv-parse/sync');
-const { parseISO, isValid, differenceInDays } = require('date-fns');
+const { parseISO, isValid, differenceInDays, min } = require('date-fns');
 
 
 const { writeToPath } = require('@fast-csv/format');
@@ -186,6 +186,69 @@ class ReportManager {
 
     }, {}) // start with an empty obj accumulator;
 
+    // 2: Calculate Metrics for each group
+    let processedData = Object.values(groupedByRegion).map(group => {
+      const projects = group.projects;
+      const totalProjects = projects.length
+
+      const allSavings = projects.map(p => p.CostSavings);
+      const allDelays = projects.map(p => p.CompletionDelayDays);
+
+      // 0 is the starting value fo the sum accumulator
+      // reduces all values in arr to a single value in accumulator (sum)
+      const totalBudget = projects.reduce((sum, p) => sum + p.ApprovedBudgetForContract, 0)
+
+      const medianSavings = this.getMedian(allSavings);
+      const avgDelay = allDelays.reduce((sum, d) => sum + d, 0) / totalProjects;
+
+      const delayedProjects = projects.filter(p => p.CompletionDelayDays > 30).length;
+      const percentDelayed = (delayedProjects/totalProjects) * 100;
+
+      // Calculate efficciency score
+      let rawScore = 0;
+      if (avgDelay <= 0) {
+        rawScore = (medianSavings > 0) ? 99999999 : 0;
+      } else if (medianSavings > 0) {
+        rawScore = (medianSavings / avgDelay) * 100;
+      }
+
+      return {
+        MainIsland: group.MainIsland,
+        Region: group.Region,
+        TotalApprovedBudget: totalBudget,
+        MedianCostSavings: medianSavings,
+        AverageCompletionDelayDays: avgDelay,
+        PercentProjectsDelayedOver30Days: percentDelayed,
+        rawScore: rawScore
+      }
+    })
+
+    //Normalize Efficiency Score (0-100)
+    const scores = processedData.map(r => r.rawScore);
+    const minScore = Math.min(...scores);
+    const maxScore= Math.max(...scores);
+    const scoreRange = maxScore - minScore;
+
+    let finalReport = processedData.map(r => {
+      let efficiencyScore = 0;
+
+      if (scoreRange > 0) {
+        efficiencyScore = ((r.rawScore - minScore) / scoreRange) * 100;
+      } else if (maxScore > 0) {
+        efficiencyScore = 100;
+      }
+
+      delete r.rawScore;
+
+      return {
+        ...r,
+        EfficiencyScore: efficiencyScore
+      }
+    })
+
+    finalReport.sort((a, b) => b.EfficiencyScore - a.EfficiencyScore);
+    console.log(`Report 1 generated with ${finalReport.length} regions.`);
+    return finalReport;
   }
 
   // Get Median Function
@@ -200,7 +263,6 @@ class ReportManager {
     } else {
       return sorted[mid];
     }
-    
   }
 
 
@@ -247,7 +309,9 @@ class App {
       case '2':
         console.log("choice 2");
         //this.handleDisplayCSV();
-        await this.writeCsvFile(this.data)
+        //await this.writeCsvFile(this.data)
+        console.log("report 1", this.reportManager.generateEfficiencyReport(this.data))
+
         break;
       case '3':
         console.log("Process Terminated");
