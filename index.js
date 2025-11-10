@@ -123,7 +123,7 @@ class DataManager {
   cleanData(records) {
     // Map creates a new array with normalized versions of each record
     const cleaned = records.map(r => ({
-      ...r, // Copy all existing properties first
+      ...r, // Copy all existing properties
 
       // Convert financial fields and derived fields to consistent numeric type
       ApprovedBudgetForContract: Number(r.ApprovedBudgetForContract),
@@ -162,12 +162,12 @@ class DataManager {
 // Contains logic for generating reports
 class ReportManager {
   // Generates Report 1: Regional Flood Mitigation Efficiency SUmmary
-  generateEfficiencyReport(fileteredData) {
+  generateEfficiencyReport(filteredData) {
 
     // === Step 1: Group projects by Region and MainIsland ===
     
-    const groupedByRegion = fileteredData.reduce((acc, record) => {
-      const key = `${record.MainIsland|record.Region}`;
+    const groupedByRegion = filteredData.reduce((acc, record) => {
+      const key = `${record.MainIsland}|${record.Region}`;
 
       // if key doesnt exist in accumulator obj yet
       if (!acc[key]) {
@@ -259,7 +259,7 @@ class ReportManager {
     const mid = Math.floor(sorted.length/2);
 
     if (sorted.length % 2 === 0) {
-      return (sorted[mid - 1] + sorted[mid] / 2);
+      return (sorted[mid - 1] + sorted[mid]) / 2;
     } else {
       return sorted[mid];
     }
@@ -310,8 +310,10 @@ class App {
         console.log("choice 2");
         //this.handleDisplayCSV();
         //await this.writeCsvFile(this.data)
-        console.log("report 1", this.reportManager.generateEfficiencyReport(this.data))
-
+        console.log(this.data)
+        console.log(this.reportManager.generateEfficiencyReport(this.data))
+        // make sure to call await when using the write csvFile
+        await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data));
         break;
       case '3':
         console.log("Process Terminated");
@@ -335,7 +337,9 @@ class App {
     console.log(this.data)
   }
 
-  async writeCsvFile(data, fileName = "test.csv") {
+
+  // make sure to call await when using the write csvFile
+  async writeCsvFile(data, fileName = "report1.csv") {
     if (!data || data.length === 0) {
       console.log('Error: the "data" array is empty. Nothing to write')
       return;
