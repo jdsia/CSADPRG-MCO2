@@ -10,7 +10,7 @@ const { parseISO, isValid, differenceInDays, differenceInCalendarDays, min } = r
 
 const { writeToPath } = require('@fast-csv/format');
 const path = require('path');
-const { error } = require('console');
+const { error, clear } = require('console');
 const { finished } = require('stream');
 
 
@@ -119,9 +119,10 @@ class DataManager {
       const end = parseISO(r.ActualCompletionDate);
 
       r.CostSavings = budget - cost;
-      //r.CompletionDelayDays = differenceInDays(end, start)
-      //r.CompletionDelayDays = differenceInDays(end, start)
       r.CompletionDelayDays = differenceInCalendarDays(end,start)
+      //console.log(start)
+      //console.log(end)
+      //console.log(r.CompletionDelayDays)
       //r.CompletionDelayDays = differenceInDays(start, end)
     }
 
@@ -176,7 +177,7 @@ class ReportManager {
   generateEfficiencyReport(filteredData) {
 
     // === Step 1: Group projects by Region and MainIsland ===
-    
+    // TODO: maybe this should be GroupBy????
     const groupedByRegion = filteredData.reduce((acc, record) => {
       const key = `${record.MainIsland}|${record.Region}`;
 
@@ -200,10 +201,13 @@ class ReportManager {
     // 2: Calculate Metrics for each group
     let processedData = Object.values(groupedByRegion).map(group => {
       const projects = group.projects;
+      //console.log(projects)
       const totalProjects = projects.length
+      //console.log(totalProjects)
 
       const allSavings = projects.map(p => p.CostSavings);
       const allDelays = projects.map(p => p.CompletionDelayDays);
+      console.log('all delays',allDelays)
 
       // 0 is the starting value fo the sum accumulator
       // reduces all values in arr to a single value in accumulator (sum)
@@ -211,6 +215,7 @@ class ReportManager {
 
       const medianSavings = this.getMedian(allSavings);
       const avgDelay = allDelays.reduce((sum, d) => sum + d, 0) / totalProjects;
+      console.log(avgDelay)
 
       const delayedProjects = projects.filter(p => p.CompletionDelayDays > 30).length;
       const percentDelayed = (delayedProjects/totalProjects) * 100;
@@ -277,6 +282,44 @@ class ReportManager {
   }
 
 
+  // REQ-0007 - Report 2: Top Contractors Performance Ranking
+  //rank top 15 contractors by total Contract Cost
+  // (Descending, filter >= 5 projects)
+  // Needed columns: numProjects, AverageCompletionDelayDays, totalCostSavings, Reliability index
+  generatePerformanceRanking(filteredData) {
+    // groupedByContractors???
+    // use reduce not groupby (to aggregate.)
+    // acc is the object we are building, proj current item in the array being processed
+    const groupedByContractors = filteredData.reduce((acc, project) => {
+      // this will be the key
+      const contractorName = project.Contractor
+
+      if (!acc[contractorName]) {
+        acc[contractorName] = {
+          NumProjects: 0,
+          TotalContractCost: 0,
+          TotalCostSavings: 0,
+          TotalCompletionDelayDays: 0
+        }
+      } 
+      
+      // Update values for contractor
+      acc[contractorName].NumProjects += 1;
+      acc[contractorName].TotalContractCost += project.ContractCost;
+      acc[contractorName].TotalCostSavings += project.Costsavings
+      acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
+
+      return acc;
+    }, {})
+
+    // 2017 contractors in the sheets, and 2017 here also
+    //console.log(groupedByContractors);
+    //console.log(Object.keys(groupedByContractors).length)
+
+  }
+
+
+
 }
 
 // App Class
@@ -305,6 +348,7 @@ class App {
     console.log("Flood Control App");
     console.log("[1] Load the File");
     console.log("[2] Generate Reports")
+    console.log("[3] Exit Program")
 
   }
 
@@ -318,10 +362,11 @@ class App {
         console.log("choice 2");
         //this.handleDisplayCSV();
         //await this.writeCsvFile(this.data)
-        console.log(this.data)
-        console.log(this.reportManager.generateEfficiencyReport(this.data))
+        //console.log(this.data)
+        //console.log(this.reportManager.generateEfficiencyReport(this.data))
         // make sure to call await when using the write csvFile
         await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data));
+        this.reportManager.generatePerformanceRanking(this.data);
         break;
       case '3':
         console.log("Process Terminated");
@@ -342,7 +387,7 @@ class App {
     //for (let j = 0; j <= 2; j++) {
     //console.log('sample record', this.data[j]);
     //}
-    console.log(this.data)
+    //console.log(this.data)
   }
 
 
