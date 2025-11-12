@@ -3,10 +3,12 @@
 //
 
 const readlineSync = require('readline-sync');
-const fs = require("fs")
+//const fs = require("fs")
+//const { parse } = require('csv-parse/sync');
+//const { parseISO, isValid, differenceInDays, differenceInCalendarDays, min } = require('date-fns');
+const fs = require('fs');
 const { parse } = require('csv-parse/sync');
-const { parseISO, isValid, differenceInDays, differenceInCalendarDays, min } = require('date-fns');
-
+const { parseISO, isValid, differenceInCalendarDays } = require('date-fns');
 
 const { writeToPath } = require('@fast-csv/format');
 const path = require('path');
@@ -77,7 +79,7 @@ class DataManager {
       // TODO - see if this fixes wrong data.
       // A project cannot finish before it starts.
       // Filter out this illogical data.
-      if (differenceInDays(end, start) < 0) {
+      if (differenceInCalendarDays(end, start) < 0) {
         invalidCount++;
         return false; // Exclude this row
       }
@@ -169,6 +171,7 @@ class DataManager {
 
 
 }
+
 
 // Class
 // Contains logic for generating reports
@@ -286,7 +289,7 @@ class ReportManager {
   //rank top 15 contractors by total Contract Cost
   // (Descending, filter >= 5 projects)
   // Needed columns: numProjects, AverageCompletionDelayDays, totalCostSavings, Reliability index
-  generatePerformanceRanking(filteredData) {
+  generateContractorPerformanceRanking(filteredData) {
     // groupedByContractors???
     // use reduce not groupby (to aggregate.)
     // acc is the object we are building, proj current item in the array being processed
@@ -315,6 +318,57 @@ class ReportManager {
     // 2017 contractors in the sheets, and 2017 here also
     //console.log(groupedByContractors);
     //console.log(Object.keys(groupedByContractors).length)
+    
+    // Generate Report
+    // {
+    //   "BuildCo": {
+    //     NumProjects: 2,
+    //     TotalContractCost: 250,
+    //     TotalCostSavings: 15,
+    //     TotalCompletionDelayDays: 15
+    //   },
+    //   "River Inc": {
+    //     NumProjects: 1,
+    //     TotalContractCost: 200,
+    //     TotalCostSavings: 20,
+    //     TotalCompletionDelayDays: -2
+    //   }
+    // }
+
+    const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
+      console.log(contractorName, group)
+      const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
+      const totalCost = group.TotalContractCost;
+      const totalSavings = group.TotalCostSavings;
+
+      // Calculate Reliability Index: (1 - (avg delay / 90)) * (total savings / total cost) * 100
+      const delayFactor = (1 - (avgDelay / 90));
+      const savingsFactor = (totalCost === 0) ? 0 : (totalSavings / totalCost);
+
+      let reliabilityIndex = delayFactor * savingsFactor * 100;
+
+      reliabilityIndex = Math.min(reliabilityIndex, 100);
+
+      return {
+        Contractor: contractorName,
+        NumProjects: group.NumProjects,
+        AverageCompletionDelayDays: avgDelay,
+        TotalCostSavings: totalsavings,
+        TotalContractCost: totalCost,
+        ReliabilityIndex: reliabilityIndex,
+      }
+    })
+
+    // Filter for contractors with >= 5 projects
+
+    // Sort by TotalContractCost (desc)
+
+    // take top 15 using slice
+    
+
+    // return final report
+
+
 
   }
 
@@ -365,8 +419,9 @@ class App {
         //console.log(this.data)
         //console.log(this.reportManager.generateEfficiencyReport(this.data))
         // make sure to call await when using the write csvFile
-        await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data));
-        this.reportManager.generatePerformanceRanking(this.data);
+        await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data), "report1.csv");
+        await this.writeCsvFile(this.data, "filteredData.csv");
+        this.reportManager.generateContractorPerformanceRanking(this.data);
         break;
       case '3':
         console.log("Process Terminated");
@@ -392,7 +447,7 @@ class App {
 
 
   // make sure to call await when using the write csvFile
-  async writeCsvFile(data, fileName = "report1.csv") {
+  async writeCsvFile(data, fileName) {
     if (!data || data.length === 0) {
       console.log('Error: the "data" array is empty. Nothing to write')
       return;
