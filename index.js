@@ -357,15 +357,12 @@ class ReportManager {
 
 
     // Sort by TotalContractCost (desc)
-    const orderedReport = filteredReport.sort((a, b) => {
-      b.TotalContractCost - a.TotalContractCost
-    })
+    const orderedReport = filteredReport.sort((a, b) => b.TotalContractCost - a.TotalContractCost)
 
 
     
     // take top 15 using slice
     const top15Reports = orderedReport.slice(0, 15);
-    return top15Reports;
     
     const finalReport = top15Reports.map((contractor) => ({
       Contractor: contractor.Contractor,
