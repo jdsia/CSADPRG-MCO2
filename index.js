@@ -122,10 +122,6 @@ class DataManager {
 
       r.CostSavings = budget - cost;
       r.CompletionDelayDays = differenceInCalendarDays(end,start)
-      //console.log(start)
-      //console.log(end)
-      //console.log(r.CompletionDelayDays)
-      //r.CompletionDelayDays = differenceInDays(start, end)
     }
 
     console.log("Derived fields computed");
@@ -204,13 +200,10 @@ class ReportManager {
     // 2: Calculate Metrics for each group
     let processedData = Object.values(groupedByRegion).map(group => {
       const projects = group.projects;
-      //console.log(projects)
       const totalProjects = projects.length
-      //console.log(totalProjects)
 
       const allSavings = projects.map(p => p.CostSavings);
       const allDelays = projects.map(p => p.CompletionDelayDays);
-      console.log('all delays',allDelays)
 
       // 0 is the starting value fo the sum accumulator
       // reduces all values in arr to a single value in accumulator (sum)
@@ -218,7 +211,6 @@ class ReportManager {
 
       const medianSavings = this.getMedian(allSavings);
       const avgDelay = allDelays.reduce((sum, d) => sum + d, 0) / totalProjects;
-      console.log(avgDelay)
 
       const delayedProjects = projects.filter(p => p.CompletionDelayDays > 30).length;
       const percentDelayed = (delayedProjects/totalProjects) * 100;
@@ -361,17 +353,29 @@ class ReportManager {
 
     // Filter for contractors with >= 5 projects
     const filteredReport = processedData.filter((contractor) => contractor.NumProjects >= 5);
-    console.log(filteredReport)
-
 
 
     // Sort by TotalContractCost (desc)
+    const orderedReport = filteredReport.sort((a, b) => {
+      b.TotalContractCost - a.TotalContractCost
+    })
 
-    // take top 15 using slice
     
+    // take top 15 using slice
+    const top15Reports = orderedReport.slice(0, 15);
+    
+    const finalReport = top15Reports.map((contractor) => ({
+      Contractor: contractor.Contractor,
+      NumProjects: contractor.NumProjects,
+      AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
+      TotalCostSavings: contractor.TotalCostSavings,
+      ReliabilityIndex: contractor.ReliabilityIndex,
+      // Flag <50 as "High Risk"
+      RiskFlag: contractor.ReliabilityIndex < 50 ? "High Risk" : contractor.ReliabilityIndex, 
+    }));
 
-    // return final report
-
+    return finalReport;
+    
 
 
   }
@@ -424,8 +428,8 @@ class App {
         //console.log(this.reportManager.generateEfficiencyReport(this.data))
         // make sure to call await when using the write csvFile
         await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data), "report1.csv");
-        await this.writeCsvFile(this.data, "filteredData.csv");
-        this.reportManager.generateContractorPerformanceRanking(this.data);
+        //await this.writeCsvFile(this.data, "filteredData.csv");
+        await this.writeCsvFile(this.reportManager.generateContractorPerformanceRanking(this.data), "report2.csv")
         break;
       case '3':
         console.log("Process Terminated");
@@ -468,7 +472,7 @@ class App {
             reject(err)
           })
         .on('finish', () =>{
-            console.log("CSV Write Successful!")
+            console.log(`Writing to CSV File: ${fileName} Successful!`)
             resolve();
           });
       });
