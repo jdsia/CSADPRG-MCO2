@@ -308,8 +308,8 @@ class ReportManager {
       
       // Update values for contractor
       acc[contractorName].NumProjects += 1;
-      acc[contractorName].TotalContractCost += project.ContractCost;
-      acc[contractorName].TotalCostSavings += project.Costsavings
+      acc[contractorName].TotalContractCost += Number(project.ContractCost);
+      acc[contractorName].TotalCostSavings += Number(project.CostSavings)
       acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
 
       return acc;
@@ -336,7 +336,6 @@ class ReportManager {
     // }
 
     const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
-      console.log(contractorName, group)
       const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
       const totalCost = group.TotalContractCost;
       const totalSavings = group.TotalCostSavings;
@@ -353,13 +352,18 @@ class ReportManager {
         Contractor: contractorName,
         NumProjects: group.NumProjects,
         AverageCompletionDelayDays: avgDelay,
-        TotalCostSavings: totalsavings,
+        TotalCostSavings: totalSavings,
         TotalContractCost: totalCost,
         ReliabilityIndex: reliabilityIndex,
       }
     })
+    // console.log(processedData)
 
     // Filter for contractors with >= 5 projects
+    const filteredReport = processedData.filter((contractor) => contractor.NumProjects >= 5);
+    console.log(filteredReport)
+
+
 
     // Sort by TotalContractCost (desc)
 
