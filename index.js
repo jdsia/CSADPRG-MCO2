@@ -361,6 +361,8 @@ class ReportManager {
       b.TotalContractCost - a.TotalContractCost
     })
 
+    return orderedReport;
+
     
     // take top 15 using slice
     const top15Reports = orderedReport.slice(0, 15);
