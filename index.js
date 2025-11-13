@@ -343,6 +343,7 @@ class ReportManager {
       return {
         Contractor: contractorName,
         NumProjects: group.NumProjects,
+        TotalContractCost: group.TotalContractCost,
         AverageCompletionDelayDays: avgDelay,
         TotalCostSavings: totalSavings,
         TotalContractCost: totalCost,
