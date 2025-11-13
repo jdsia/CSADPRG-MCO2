@@ -369,6 +369,7 @@ class ReportManager {
       Contractor: contractor.Contractor,
       NumProjects: contractor.NumProjects,
       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
+      TotalContractCost: contractor.TotalContractCost,
       TotalCostSavings: contractor.TotalCostSavings,
       ReliabilityIndex: contractor.ReliabilityIndex,
       // Flag <50 as "High Risk"
