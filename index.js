@@ -308,24 +308,6 @@ class ReportManager {
     }, {})
 
     // 2017 contractors in the sheets, and 2017 here also
-    //console.log(groupedByContractors);
-    //console.log(Object.keys(groupedByContractors).length)
-    
-    // Generate Report
-    // {
-    //   "BuildCo": {
-    //     NumProjects: 2,
-    //     TotalContractCost: 250,
-    //     TotalCostSavings: 15,
-    //     TotalCompletionDelayDays: 15
-    //   },
-    //   "River Inc": {
-    //     NumProjects: 1,
-    //     TotalContractCost: 200,
-    //     TotalCostSavings: 20,
-    //     TotalCompletionDelayDays: -2
-    //   }
-    // }
 
     const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
       const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
@@ -368,7 +350,7 @@ class ReportManager {
       Contractor: contractor.Contractor,
       NumProjects: contractor.NumProjects,
       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
-      TotalContractCost: contractor.TotalContractCost,
+      //TotalContractCost: contractor.TotalContractCost,
       TotalCostSavings: contractor.TotalCostSavings,
       ReliabilityIndex: contractor.ReliabilityIndex,
       // Flag <50 as "High Risk"
@@ -376,10 +358,57 @@ class ReportManager {
     }));
 
     return finalReport;
-    
+  }
 
+//   Provision to generate Report 3: Annual Project Type Cost Overrun Trends. Group by
+// FundingYear and TypeOfWork, computing the following:
+// ● total projects
+// ● average CostSavings (negative if overrun)
+// ● overrun rate (% with negative savings)
+// ● year-over-year % change in average savings (2021 baseline).
+  generateAnnualOverrunTrends(filteredData) {
+    // const groupedByRegion = filteredData.reduce((acc, record) => {
+    //   const key = `${record.MainIsland}|${record.Region}`;
+    //
+    //   // if key doesnt exist in accumulator obj yet
+    //   if (!acc[key]) {
+    //     // ... then create it
+    //     acc[key] = {
+    //       MainIsland: record.MainIsland,
+    //       Region: record.Region,
+    //       projects: []
+    //     }
+    //   }
+    //
+    //   // add the current record into the right group 
+    //   acc[key].projects.push(record)
+    //
+    //   return acc;
+    //
+    // }, {}) // start with an empty obj accumulator;
+
+    const groupedData = filteredData.reduce((acc, record) => {
+      const key = `${record.FundingYear}|${record.TypeOfWork}`;
+
+      if(!acc[key]){
+       acc[key]  = {
+          FundingYear: record.FundingYear,
+          TypeOfWorki: record.TypeOfWork,
+          projects: []
+        }
+      }
+
+      acc[key].projects.push(record)
+      return acc;
+    }, {})
+
+    // process
+    
+    // return final data
 
   }
+
+
 
 
 
