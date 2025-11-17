@@ -365,7 +365,7 @@ class ReportManager {
 // ● total projects
 // ● average CostSavings (negative if overrun)
 // ● overrun rate (% with negative savings)
-// ● year-over-year % change in average savings (2021 baseline).
+// ● yeagenerateContractorPerformanceRankingr-over-year % change in average savings (2021 baseline).
   generateAnnualOverrunTrends(filteredData) {
     // const groupedByRegion = filteredData.reduce((acc, record) => {
     //   const key = `${record.MainIsland}|${record.Region}`;
@@ -393,7 +393,7 @@ class ReportManager {
       if(!acc[key]){
        acc[key]  = {
           FundingYear: record.FundingYear,
-          TypeOfWorki: record.TypeOfWork,
+          TypeOfWork: record.TypeOfWork,
           projects: []
         }
       }
@@ -402,9 +402,74 @@ class ReportManager {
       return acc;
     }, {})
 
-    // process
+    // process and aggregate data
+    const aggregatedData = Object.values(groupedData).map(group => {
+      const totalProjects = group.projects.length
+
+      const stats = group.projects.reduce((projectAcc, project) => {
+        const savings = parseFloat(project.CostSavings) || 0; // ensure CostSavings is a num
+        projectAcc.sumCostSavings += savings;
+        if (savings < 0) {
+          projectAcc.overrunCount++
+        }
+        return projectAcc;
+      }, {
+          // initialize the accumulator
+          sumCostSavings: 0,
+          overrunCount: 0
+        });
+
+      // calc averages and rates for the group
+      const averageCostSavings = (stats.sumCostSavings / totalProjects) || 0;
+      const overrunRate = (stats.overrunCount / totalProjects) * 100 || 0; 
+
+      return {
+        FundingYear: group.FundingYear,
+        TypeOfWork: group.TypeOfWork,
+        TotalProjects: totalProjects,
+        AverageCostSavings: averageCostSavings,
+        OverrunRate: overrunRate
+      };
+    })
+
+    // calculate YoY change vs 2021
+    // create lookup map for 2021 baseline avg savings
+    const baselineMap = new Map();
+    aggregatedData
+      .filter(d => d.FundingYear == 2021)
+      .forEach(d => {
+        // set (key, val)
+        baselineMap.set(d.TypeOfWork, d.AverageCostSavings);
+      })
+
+    const finalData = aggregatedData.map(d => {
+      //const baselineSavings = baselineMap.get(d.AverageCostSavings);
+      const baselineSavings = baselineMap.get(d.TypeOfWork);
+      let yoyChange = null; 
+
+      if (d.FundingYear == 2021) {
+        yoyChange = 0;
+      } else if (baselineSavings != null) {
+        if (baselineSavings === 0) {
+          yoyChange = (d.AverageCostSavings === 0) ? 0 : null
+        } else {
+          yoyChange = ((d.AverageCostSavings - baselineSavings) / Math.abs(baselineSavings)) * 100;
+        }
+      }
+
+      return {
+        ...d,
+        'YoY % Change (vs 2021)': yoyChange
+      };
+    })
     
     // return final data
+    return finalData.sort((a,b) => {
+      if (a.FundingYear !== b.FundingYear) {
+        return a.FundingYear - b.FundingYear;
+      }
+      return a.TypeOfWork.localeCompare(b.TypeOfWork);
+    });
 
   }
 
@@ -460,6 +525,7 @@ class App {
         await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data), "report1.csv");
         //await this.writeCsvFile(this.data, "filteredData.csv");
         await this.writeCsvFile(this.reportManager.generateContractorPerformanceRanking(this.data), "report2.csv")
+        await this.writeCsvFile(this.reportManager.generateAnnualOverrunTrends(this.data), "report3.csv")
         break;
       case '3':
         console.log("Process Terminated");
