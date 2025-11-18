@@ -17,156 +17,376 @@ const { finished } = require('stream');
 
 
 
+// class DataManager {
+//   // Loads data from the csv file
+//   // REQ 0001
+//   loadData(filePath) {
+//     const content = fs.readFileSync(filePath, 'utf8')
+//     const records = parse(content, {
+//       columns: true, // uses first row as header keys for objs
+//       skip_empty_lines: true // ignores blank lines
+//     })
+//     console.log(`loaded ${records.length} records.`)
+//     return records;
+//   }
+//
+//   // REQ 0002
+//   // Validate and clean fields
+//   validateData(records) {
+//     // Counter to keep track of how many invalid records are found
+//     let invalidCount = 0;
+//
+//     // Defines which columns must be present and valid in each record
+//     const required = [
+//       'StartDate',
+//       'ActualCompletionDate',
+//       'ApprovedBudgetForContract',
+//       'ContractCost',
+//       'Region',
+//       'FundingYear'
+//     ];
+//
+//     // Filters out invalid rows, keeping only valid ones
+//     const valid = records.filter(row => {
+//       // Check if any required field is missing or empty
+//       for (const field of required) {
+//         if (!row[field] || row[field].trim() === '') {
+//           invalidCount++;
+//           return false; // exclude this row
+//         }
+//       }
+//
+//       // Convert financial fields to numbers for validation
+//       const budget = Number(row.ApprovedBudgetForContract);
+//       const cost = Number(row.ContractCost);
+//
+//       // Reject if either conversion fails (NaN)
+//       if (isNaN(budget) || isNaN(cost)) {
+//         invalidCount++;
+//         return false;
+//       }
+//
+//       // Parse date strings into Date objects for validation
+//       const start = parseISO(row.StartDate);
+//       const end = parseISO(row.ActualCompletionDate);
+//
+//       // Reject if either date is invalid
+//       if (!isValid(start) || !isValid(end)) {
+//         invalidCount++;
+//         return false;
+//       }
+//
+//       // TODO - see if this fixes wrong data.
+//       // A project cannot finish before it starts.
+//       // Filter out this illogical data.
+//       if (differenceInCalendarDays(end, start) < 0) {
+//         invalidCount++;
+//         return false; // Exclude this row
+//       }
+//
+//       // If all checks passed, keep this record
+//       return true;
+//     });
+//
+//     // Print summary of valid vs invalid entries
+//     console.log(`Validated ${valid.length} valid records.`);
+//     console.log(`Removed ${invalidCount} invalid records.`);
+//
+//     // Return the filtered list of valid rows
+//     return valid;
+//   }
+//
+//   // REQ-0003
+//   filterByYear(records, startYear = 2021, endYear = 2023) {
+//     const filtered = records.filter(r => {
+//       const year = Number(r.FundingYear)
+//       return year >= startYear && year <= endYear;
+//     });
+//
+//     console.log(`Filtered records (FundingYear ${startYear}-${endYear}): ${filtered.length}`);
+//
+//     return filtered;
+//   }
+//
+//   // REQ-0004 
+//   // Provision to compute CostSavings, CompletionDelayDays
+//   computeDerivedFields(records) {
+//     // 2 variables, budget and cost
+//     for (const r of records) {
+//       const budget = Number(r.ApprovedBudgetForContract);
+//       const cost = Number(r.ContractCost);
+//
+//       // parse dates
+//       const start = parseISO(r.StartDate);
+//       const end = parseISO(r.ActualCompletionDate);
+//
+//       r.CostSavings = budget - cost;
+//       r.CompletionDelayDays = differenceInCalendarDays(end,start)
+//     }
+//
+//     console.log("Derived fields computed");
+//
+//     return records
+//   }
+//
+//   // REQ-0005 
+//   cleanData(records) {
+//     // Map creates a new array with normalized versions of each record
+//     const cleaned = records.map(r => ({
+//       ...r, // Copy all existing properties
+//
+//       // Convert financial fields and derived fields to consistent numeric type
+//       ApprovedBudgetForContract: Number(r.ApprovedBudgetForContract),
+//       ContractCost: Number(r.ContractCost),
+//       CostSavings: Number(r.CostSavings),
+//       CompletionDelayDays: Number(r.CompletionDelayDays),
+//
+//       // Convert date strings to Date objects for consistent processing later
+//       StartDate: parseISO(r.StartDate),
+//       ActualCompletionDate: parseISO(r.ActualCompletionDate)
+//     }));
+//
+//     // Inform the user that normalization is done
+//     console.log('Data cleaned and normalized.');
+//
+//     // Return the cleaned dataset
+//     return cleaned;
+//   }
+//
+//   // helper function to clean data
+//   processData(filePath) {
+//     let data = this.loadData(filePath);
+//     data = this.validateData(data);
+//     data = this.filterByYear(data);
+//     data = this.computeDerivedFields(data);
+//     data = this.cleanData(data);
+//     console.log('Data has been processed!')
+//
+//     return data;
+//   }
+//
+//
+// }
+
 class DataManager {
-  // Loads data from the csv file
-  // REQ 0001
+
+  parseMoney(raw) {
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+
+    let s = String(raw).trim().toLowerCase();
+
+    // If normal number
+    if (/^[\d,.\-\(\)\s]+$/.test(s)) {
+      // Remove commas & currency symbols
+      s = s.replace(/[,₱$€£]/g, '');
+      // Parentheses = negative
+      const paren = s.match(/^\((.*)\)$/);
+      if (paren) s = '-' + paren[1];
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    return null;
+  }
+
+  extractClusterId(str) {
+    if (!str) return null;
+    const s = String(str);
+
+    const match = s.match(
+      /(Clustered with Contract ID|MYCA with Project ID)\s+([A-Za-z0-9\-_.]+)/i
+    );
+
+    return match ? match[2] : null;
+  }
+
+  resolveClusterValue(row, fieldName, byProjectId, visited = new Set()) {
+    const raw = row[fieldName];
+
+    // 1. Try direct money parse
+    const parsed = this.parseMoney(raw);
+    if (parsed !== null) return parsed;
+
+    // 2. Try extract cluster referenced ID
+    const refId = this.extractClusterId(raw);
+    if (!refId) return null;
+
+    // Prevent circular reference
+    if (visited.has(refId)) return null;
+    visited.add(refId);
+
+    const refRow = byProjectId[refId];
+    if (!refRow) return null;
+
+    // Recurse to referenced row
+    return this.resolveClusterValue(refRow, fieldName, byProjectId, visited);
+  }
+
+  // CSV Loader (REQ-0001)
   loadData(filePath) {
-    const content = fs.readFileSync(filePath, 'utf8')
+    const content = fs.readFileSync(filePath, 'utf8');
     const records = parse(content, {
-      columns: true, // uses first row as header keys for objs
-      skip_empty_lines: true // ignores blank lines
-    })
-    console.log(`loaded ${records.length} records.`)
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    });
+
+    console.log(`Loaded ${records.length} raw rows.`);
     return records;
   }
 
-  // REQ 0002
-  // Validate and clean fields
+  // Validation (REQ-0002)
   validateData(records) {
-    // Counter to keep track of how many invalid records are found
     let invalidCount = 0;
+    let missingDate = 0;
 
-    // Defines which columns must be present and valid in each record
-    const required = [
-      'StartDate',
-      'ActualCompletionDate',
-      'ApprovedBudgetForContract',
-      'ContractCost',
-      'Region',
-      'FundingYear'
-    ];
+    const required = ['StartDate', 'ApprovedBudgetForContract', 'ContractCost'];
 
-    // Filters out invalid rows, keeping only valid ones
-    const valid = records.filter(row => {
-      // Check if any required field is missing or empty
-      for (const field of required) {
-        if (!row[field] || row[field].trim() === '') {
+    const valid = records.filter(r => {
+      for (const f of required) {
+        if (!r[f] || String(r[f]).trim() === '') {
           invalidCount++;
-          return false; // exclude this row
+          return false;
         }
       }
 
-      // Convert financial fields to numbers for validation
-      const budget = Number(row.ApprovedBudgetForContract);
-      const cost = Number(row.ContractCost);
-
-      // Reject if either conversion fails (NaN)
-      if (isNaN(budget) || isNaN(cost)) {
+      const start = parseISO(r.StartDate);
+      if (!isValid(start)) {
+        missingDate++;
         invalidCount++;
         return false;
       }
 
-      // Parse date strings into Date objects for validation
-      const start = parseISO(row.StartDate);
-      const end = parseISO(row.ActualCompletionDate);
-
-      // Reject if either date is invalid
-      if (!isValid(start) || !isValid(end)) {
-        invalidCount++;
-        return false;
-      }
-
-      // TODO - see if this fixes wrong data.
-      // A project cannot finish before it starts.
-      // Filter out this illogical data.
-      if (differenceInCalendarDays(end, start) < 0) {
-        invalidCount++;
-        return false; // Exclude this row
-      }
-
-      // If all checks passed, keep this record
       return true;
     });
 
-    // Print summary of valid vs invalid entries
-    console.log(`Validated ${valid.length} valid records.`);
-    console.log(`Removed ${invalidCount} invalid records.`);
+    console.log(
+      `Validation: ${valid.length} kept, ${invalidCount} removed. (${missingDate} date errors)`
+    );
 
-    // Return the filtered list of valid rows
     return valid;
   }
 
-  // REQ-0003
+  // Year Filtering (REQ-0003)
   filterByYear(records, startYear = 2021, endYear = 2023) {
-    const filtered = records.filter(r => {
-      const year = Number(r.FundingYear)
-      return year >= startYear && year <= endYear;
+    const kept = records.filter(r => {
+      const d = parseISO(r.StartDate);
+      if (!isValid(d)) return false;
+      const y = d.getFullYear();
+      return y >= startYear && y <= endYear;
     });
 
-    console.log(`Filtered records (FundingYear ${startYear}-${endYear}): ${filtered.length}`);
-
-    return filtered;
+    console.log(`Filtered by year ${startYear}-${endYear}: ${kept.length} records kept.`);
+    return kept;
   }
 
-  // REQ-0004 
-  // Provision to compute CostSavings, CompletionDelayDays
+  // Derived Fields + Cluster Resolution (REQ-0004)
   computeDerivedFields(records) {
-    // 2 variables, budget and cost
+    // Build lookup table for cluster resolution
+    const byProjectId = {};
     for (const r of records) {
-      const budget = Number(r.ApprovedBudgetForContract);
-      const cost = Number(r.ContractCost);
-
-      // parse dates
-      const start = parseISO(r.StartDate);
-      const end = parseISO(r.ActualCompletionDate);
-
-      r.CostSavings = budget - cost;
-      r.CompletionDelayDays = differenceInCalendarDays(end,start)
+      if (r.ProjectId) byProjectId[r.ProjectId.trim()] = r;
     }
 
-    console.log("Derived fields computed");
+    let clusterResolved = 0;
+    let clusterFailed = 0;
 
-    return records
+    for (const r of records) {
+      // Resolve ApprovedBudgetForContract
+      const resolvedBudget = this.resolveClusterValue(
+        r, 'ApprovedBudgetForContract', byProjectId, new Set()
+      );
+
+      if (resolvedBudget !== null) {
+        r.ApprovedBudgetForContract = resolvedBudget;
+        clusterResolved++;
+      } else if (this.extractClusterId(r.ApprovedBudgetForContract)) {
+        clusterFailed++;
+      }
+
+      // Resolve ContractCost
+      const resolvedCost = this.resolveClusterValue(
+        r, 'ContractCost', byProjectId, new Set()
+      );
+
+      if (resolvedCost !== null) {
+        r.ContractCost = resolvedCost;
+        clusterResolved++;
+      } else if (this.extractClusterId(r.ContractCost)) {
+        clusterFailed++;
+      }
+
+      // Compute CostSavings (if both fields resolved)
+      if (
+        resolvedBudget !== null &&
+        resolvedCost !== null &&
+        Number.isFinite(resolvedBudget) &&
+        Number.isFinite(resolvedCost)
+      ) {
+        r.CostSavings = resolvedBudget - resolvedCost;
+      } else {
+        r.CostSavings = null;
+      }
+
+      // Handle dates
+      const start = parseISO(r.StartDate);
+      let end = r.ActualCompletionDate && isValid(parseISO(r.ActualCompletionDate))
+        ? parseISO(r.ActualCompletionDate)
+        : start;
+
+      r.CompletionDelayDays = differenceInCalendarDays(end, start);
+    }
+
+    console.log(
+      `Cluster resolution: ${clusterResolved} values resolved, ${clusterFailed} unresolved.`
+    );
+
+    return records;
   }
 
-  // REQ-0005 
+  // Cleaning (REQ-0005)
   cleanData(records) {
-    // Map creates a new array with normalized versions of each record
-    const cleaned = records.map(r => ({
-      ...r, // Copy all existing properties
+    return records.map(r => {
+      const startD = parseISO(r.StartDate);
+      const endD =
+        r.ActualCompletionDate && isValid(parseISO(r.ActualCompletionDate))
+          ? parseISO(r.ActualCompletionDate)
+          : startD;
 
-      // Convert financial fields and derived fields to consistent numeric type
-      ApprovedBudgetForContract: Number(r.ApprovedBudgetForContract),
-      ContractCost: Number(r.ContractCost),
-      CostSavings: Number(r.CostSavings),
-      CompletionDelayDays: Number(r.CompletionDelayDays),
-
-      // Convert date strings to Date objects for consistent processing later
-      StartDate: parseISO(r.StartDate),
-      ActualCompletionDate: parseISO(r.ActualCompletionDate)
-    }));
-
-    // Inform the user that normalization is done
-    console.log('Data cleaned and normalized.');
-
-    // Return the cleaned dataset
-    return cleaned;
+      return {
+        ...r,
+        ApprovedBudgetForContract: Number.isFinite(r.ApprovedBudgetForContract)
+          ? r.ApprovedBudgetForContract
+          : null,
+        ContractCost: Number.isFinite(r.ContractCost)
+          ? r.ContractCost
+          : null,
+        CostSavings: Number.isFinite(r.CostSavings)
+          ? r.CostSavings
+          : null,
+        CompletionDelayDays: Number.isFinite(r.CompletionDelayDays)
+          ? r.CompletionDelayDays
+          : 0,
+        StartDate: startD,
+        ActualCompletionDate: endD
+      };
+    });
   }
 
-  // helper function to clean data
+  // Data Pipeline
   processData(filePath) {
     let data = this.loadData(filePath);
     data = this.validateData(data);
     data = this.filterByYear(data);
     data = this.computeDerivedFields(data);
     data = this.cleanData(data);
-    console.log('Data has been processed!')
 
+    console.log('Data processing completed.');
     return data;
   }
-
-
 }
+
 
 
 // Class
@@ -175,7 +395,6 @@ class ReportManager {
   // Generates Report 1: Regional Flood Mitigation Efficiency SUmmary
   generateEfficiencyReport(filteredData) {
 
-    // === Step 1: Group projects by Region and MainIsland ===
     // TODO: maybe this should be GroupBy????
     const groupedByRegion = filteredData.reduce((acc, record) => {
       const key = `${record.MainIsland}|${record.Region}`;
@@ -300,18 +519,23 @@ class ReportManager {
       
       // Update values for contractor
       acc[contractorName].NumProjects += 1;
-      acc[contractorName].TotalContractCost += Number(project.ContractCost);
-      acc[contractorName].TotalCostSavings += Number(project.CostSavings)
+      // acc[contractorName].TotalContractCost += Number(project.ContractCost);
+      // acc[contractorName].TotalCostSavings += Number(project.CostSavings)
+      acc[contractorName].TotalContractCost += Number.isFinite(project.ContractCost) ? project.ContractCost : 0;
+      acc[contractorName].TotalCostSavings += Number.isFinite(project.CostSavings) ? project.CostSavings : 0;
       acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
 
       return acc;
     }, {})
+    // outputs correctly
+    //console.log(groupedByContractors)
 
     // 2017 contractors in the sheets, and 2017 here also
 
     const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
       const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
-      const totalCost = group.TotalContractCost;
+      // TODO duplicate but just to double check
+      const totalCost = Number(group.TotalContractCost);
       const totalSavings = group.TotalCostSavings;
 
       // Calculate Reliability Index: (1 - (avg delay / 90)) * (total savings / total cost) * 100
@@ -350,7 +574,7 @@ class ReportManager {
       Contractor: contractor.Contractor,
       NumProjects: contractor.NumProjects,
       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
-      //TotalContractCost: contractor.TotalContractCost,
+      TotalContractCost: contractor.TotalContractCost,
       TotalCostSavings: contractor.TotalCostSavings,
       ReliabilityIndex: contractor.ReliabilityIndex,
       // Flag <50 as "High Risk"
@@ -367,25 +591,6 @@ class ReportManager {
 // ● overrun rate (% with negative savings)
 // ● yeagenerateContractorPerformanceRankingr-over-year % change in average savings (2021 baseline).
   generateAnnualOverrunTrends(filteredData) {
-    // const groupedByRegion = filteredData.reduce((acc, record) => {
-    //   const key = `${record.MainIsland}|${record.Region}`;
-    //
-    //   // if key doesnt exist in accumulator obj yet
-    //   if (!acc[key]) {
-    //     // ... then create it
-    //     acc[key] = {
-    //       MainIsland: record.MainIsland,
-    //       Region: record.Region,
-    //       projects: []
-    //     }
-    //   }
-    //
-    //   // add the current record into the right group 
-    //   acc[key].projects.push(record)
-    //
-    //   return acc;
-    //
-    // }, {}) // start with an empty obj accumulator;
 
     const groupedData = filteredData.reduce((acc, record) => {
       const key = `${record.FundingYear}|${record.TypeOfWork}`;
