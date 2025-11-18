@@ -474,6 +474,32 @@ class ReportManager {
   }
 
 
+  generateSummaryJSON(allRecords) {
+    const totalProjects = allRecords.length;
+
+    // total num of unique contractors
+    const contractorSet = new Set(allRecords.map(r => r.Contractor));
+    const totalContractors = contractorSet.size;
+
+    // total num of unique provinces
+    const provinceField = allRecords[0].Province ? "Province" : "District";
+    const provinceSet = new Set(allRecords.map(r => r[provinceField]));
+    const totalProvinces = provinceSet.size;
+
+    const globalAvgDelay = allRecords.reduce((sum, r) => sum + r.CompletionDelayDays, 0) / totalProjects;
+    
+    // sum = accumulator
+    const totalSavings = allRecords.reduce((sum, r) => sum + r.CostSavings, 0);
+
+    return {
+      totalProjects,
+      totalContractors,
+      totalProvinces,
+      globalAvgDelay,
+      totalSavings
+    }
+  }
+
 
 
 
@@ -522,10 +548,19 @@ class App {
         //console.log(this.data)
         //console.log(this.reportManager.generateEfficiencyReport(this.data))
         // make sure to call await when using the write csvFile
-        await this.writeCsvFile(this.reportManager.generateEfficiencyReport(this.data), "report1.csv");
-        //await this.writeCsvFile(this.data, "filteredData.csv");
-        await this.writeCsvFile(this.reportManager.generateContractorPerformanceRanking(this.data), "report2.csv")
-        await this.writeCsvFile(this.reportManager.generateAnnualOverrunTrends(this.data), "report3.csv")
+
+        const report1 = this.reportManager.generateEfficiencyReport(this.data)
+        const report2 = this.reportManager.generateContractorPerformanceRanking(this.data)
+        const report3 =this.reportManager.generateAnnualOverrunTrends(this.data)
+        const summary = this.reportManager.generateSummaryJSON(this.data);
+
+
+        await this.writeCsvFile(report1, "report1.csv");
+        await this.writeCsvFile(report2, "report2.csv")
+        await this.writeCsvFile(report3, "report3.csv")
+        // generate summary.json
+        fs.writeFileSync("summary.json", JSON.stringify(summary, null, 2));
+        console.log("summary.json generated");
         break;
       case '3':
         console.log("Process Terminated");
