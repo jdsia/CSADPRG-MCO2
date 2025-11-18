@@ -500,6 +500,107 @@ class ReportManager {
     }
   }
 
+  pad(v, w) {
+    v = String(v);
+    return v.length >= w ? v.slice(0, w) : v + " ".repeat(w - v.length);
+  }
+
+    
+  printReport1(data) {
+    console.log("\nReport 1: Regional Flood Mitigation Efficiency Summary");
+    const cols = [
+      ["Region", 20],
+      ["MainIsland", 12],
+      ["TotalBudget", 15],
+      ["MedianSavings", 15],
+      ["AvgDelay", 10],
+      ["HighDelayPct", 14],
+      ["EfficiencyScore", 16],
+    ];
+    const header = "| " + cols.map(([n,w]) => this.pad(n, w)).join(" | ") + " |";
+    const line   = "|-" + cols.map(([_,w]) => "-".repeat(w)).join("-|-") + "-|";
+    console.log(header);
+    console.log(line);
+    data.slice(0,2).forEach(r => {
+      const row = [
+        r.Region,
+        r.MainIsland,
+        r.TotalApprovedBudget,
+        r.MedianCostSavings,
+        r.AverageCompletionDelayDays,
+        r.PercentProjectsDelayedOver30Days,
+        r.EfficiencyScore
+      ];
+      console.log("| " + row.map((v,i) => this.pad(v, cols[i][1])).join(" | ") + " |");
+    });
+    console.log("\n(Full table is in report1.csv)\n");
+  }
+
+  printReport2(data) {
+    console.log("\nReport 2: Top Contractors Performance Ranking");
+    const cols = [
+      ["Rank", 4],
+      ["Contractor", 30],
+      ["TotalCost", 15],
+      ["NumProj", 8],
+      ["AvgDelay", 10],
+      ["TotalSavings", 15],
+      ["Reliability", 12],
+      ["RiskFlag", 10],
+    ];
+    const header = "| " + cols.map(([n,w]) => this.pad(n, w)).join(" | ") + " |";
+    const line   = "|-" + cols.map(([_,w]) => "-".repeat(w)).join("-|-") + "-|";
+    console.log(header);
+    console.log(line);
+    data.slice(0,2).forEach((c, i) => {
+      const row = [
+        i + 1,
+        c.Contractor,
+        c.TotalContractCost,
+        c.NumProjects,
+        c.AverageCompletionDelayDays,
+        c.TotalCostSavings,
+        c.ReliabilityIndex,
+        c.RiskFlag
+      ];
+  
+      console.log("| " + row.map((v,i) => this.pad(v, cols[i][1])).join(" | ") + " |");
+    });
+  
+    console.log("\n(Full table is in report2.csv)\n");
+  }
+
+  printReport3(data) {
+  console.log("\nReport 3: Annual Project Type Cost Overrun Trends");
+    const cols = [
+      ["Year", 6],
+      ["TypeOfWork", 35],
+      ["TotalProj", 10],
+      ["AvgSavings", 12],
+      ["OverrunRate", 12],
+      ["YoYChange", 12],
+    ];
+
+    const header = "| " + cols.map(([n,w]) => this.pad(n, w)).join(" | ") + " |";
+    const line   = "|-" + cols.map(([_,w]) => "-".repeat(w)).join("-|-") + "-|";
+
+    console.log(header);
+    console.log(line);
+
+    data.slice(0,2).forEach(r => {
+      const row = [
+        r.FundingYear,
+        r.TypeOfWork,
+        r.TotalProjects,
+        r.AverageCostSavings.toFixed(2),
+        r.OverrunRate.toFixed(2),
+        r["YoY % Change (vs 2021)"]
+      ];
+      console.log("| " + row.map((v,i) => this.pad(v, cols[i][1])).join(" | ") + " |");
+    });
+
+    console.log("\n(Full table is in report3.csv)\n");
+  }
 
 
 
@@ -556,8 +657,13 @@ class App {
 
 
         await this.writeCsvFile(report1, "report1.csv");
+        this.reportManager.printReport1(report1);
+
         await this.writeCsvFile(report2, "report2.csv")
+        this.reportManager.printReport2(report2);
+
         await this.writeCsvFile(report3, "report3.csv")
+        this.reportManager.printReport3(report3);
         // generate summary.json
         fs.writeFileSync("summary.json", JSON.stringify(summary, null, 2));
         console.log("summary.json generated");
