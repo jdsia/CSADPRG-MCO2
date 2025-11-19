@@ -12,8 +12,8 @@ const { parseISO, isValid, differenceInCalendarDays } = require('date-fns');
 
 const { writeToPath } = require('@fast-csv/format');
 const path = require('path');
-const { error, clear } = require('console');
-const { finished } = require('stream');
+//const { error, clear } = require('console');
+//const { finished } = require('stream');
 
 
 
@@ -443,8 +443,8 @@ class ReportManager {
       }
 
       return {
-        MainIsland: group.MainIsland,
         Region: group.Region,
+        MainIsland: group.MainIsland,
         TotalApprovedBudget: totalBudget,
         MedianCostSavings: medianSavings,
         AverageCompletionDelayDays: avgDelay,
@@ -495,6 +495,7 @@ class ReportManager {
     }
   }
 
+  //TODO: REPORT 2 Data is completely different
 
   // REQ-0007 - Report 2: Top Contractors Performance Ranking
   //rank top 15 contractors by total Contract Cost
@@ -510,6 +511,7 @@ class ReportManager {
 
       if (!acc[contractorName]) {
         acc[contractorName] = {
+          Rank: 0,
           NumProjects: 0,
           TotalContractCost: 0,
           TotalCostSavings: 0,
@@ -518,12 +520,16 @@ class ReportManager {
       } 
       
       // Update values for contractor
+      acc[contractorName].Rank += 1;
       acc[contractorName].NumProjects += 1;
       // acc[contractorName].TotalContractCost += Number(project.ContractCost);
       // acc[contractorName].TotalCostSavings += Number(project.CostSavings)
       acc[contractorName].TotalContractCost += Number.isFinite(project.ContractCost) ? project.ContractCost : 0;
       acc[contractorName].TotalCostSavings += Number.isFinite(project.CostSavings) ? project.CostSavings : 0;
-      acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
+      //acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
+      acc[contractorName].TotalCompletionDelayDays += Number.isFinite(project.CompletionDelayDays) ? project.CompletionDelayDays : 0;
+
+
 
       return acc;
     }, {})
@@ -546,10 +552,24 @@ class ReportManager {
 
       reliabilityIndex = Math.min(reliabilityIndex, 100);
 
+      //// Calculate Reliability Index
+      //let delayFactor = 1 - (avgDelay / 90);
+      //// optionally clamp delayFactor so that >90 days becomes negative; we'll allow negative effect but then clamp final index
+      //const savingsFactor = totalCost === 0 ? 0 : (totalSavings / totalCost);
+
+      //let reliabilityIndex = delayFactor * savingsFactor * 100;
+
+      //// clamp to 0..100 (avoid negative or >100)
+      //if (reliabilityIndex > 100) reliabilityIndex = 100;
+      //if (reliabilityIndex < 0) reliabilityIndex = 0;
+
+      //// round reliability to 2 decimals for readability
+      //reliabilityIndex = Math.round(reliabilityIndex * 100) / 100;
+
       return {
         Contractor: contractorName,
         NumProjects: group.NumProjects,
-        TotalContractCost: group.TotalContractCost,
+        //TotalContractCost: group.TotalContractCost,
         AverageCompletionDelayDays: avgDelay,
         TotalCostSavings: totalSavings,
         TotalContractCost: totalCost,
@@ -570,7 +590,8 @@ class ReportManager {
     // take top 15 using slice
     const top15Reports = orderedReport.slice(0, 15);
     
-    const finalReport = top15Reports.map((contractor) => ({
+    const finalReport = top15Reports.map((contractor, index) => ({
+      Rank: index + 1,
       Contractor: contractor.Contractor,
       NumProjects: contractor.NumProjects,
       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
@@ -694,6 +715,7 @@ class ReportManager {
     const globalAvgDelay = allRecords.reduce((sum, r) => sum + r.CompletionDelayDays, 0) / totalProjects;
     
     // sum = accumulator
+    // TOTAL SAVINGS different from nykko
     const totalSavings = allRecords.reduce((sum, r) => sum + r.CostSavings, 0);
 
     return {
