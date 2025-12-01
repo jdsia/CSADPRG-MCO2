@@ -346,106 +346,69 @@ class ReportManager {
   }
 
   //TODO: REPORT 2 Data is completely different
-
-  // REQ-0007 - Report 2: Top Contractors Performance Ranking
-  //rank top 15 contractors by total Contract Cost
-  // (Descending, filter >= 5 projects)
-  // Needed columns: numProjects, AverageCompletionDelayDays, totalCostSavings, Reliability index
+  
   generateContractorPerformanceRanking(filteredData) {
-    // groupedByContractors???
-    // use reduce not groupby (to aggregate.)
-    // acc is the object we are building, proj current item in the array being processed
     const groupedByContractors = filteredData.reduce((acc, project) => {
-      // this will be the key
       const contractorName = project.Contractor
 
       if (!acc[contractorName]) {
         acc[contractorName] = {
-          Rank: 0,
           NumProjects: 0,
           TotalContractCost: 0,
           TotalCostSavings: 0,
           TotalCompletionDelayDays: 0
         }
       } 
-      
-      // Update values for contractor
-      acc[contractorName].Rank += 1;
+
       acc[contractorName].NumProjects += 1;
-      // acc[contractorName].TotalContractCost += Number(project.ContractCost);
-      // acc[contractorName].TotalCostSavings += Number(project.CostSavings)
       acc[contractorName].TotalContractCost += Number.isFinite(project.ContractCost) ? project.ContractCost : 0;
       acc[contractorName].TotalCostSavings += Number.isFinite(project.CostSavings) ? project.CostSavings : 0;
-      //acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
       acc[contractorName].TotalCompletionDelayDays += Number.isFinite(project.CompletionDelayDays) ? project.CompletionDelayDays : 0;
-
-
 
       return acc;
     }, {})
-    // outputs correctly
-    //console.log(groupedByContractors)
-
-    // 2017 contractors in the sheets, and 2017 here also
 
     const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
       const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
-      // TODO duplicate but just to double check
       const totalCost = Number(group.TotalContractCost);
       const totalSavings = group.TotalCostSavings;
 
-      // Calculate Reliability Index: (1 - (avg delay / 90)) * (total savings / total cost) * 100
+      // Calculate Reliability Index
       const delayFactor = (1 - (avgDelay / 90));
       const savingsFactor = (totalCost === 0) ? 0 : (totalSavings / totalCost);
 
       let reliabilityIndex = delayFactor * savingsFactor * 100;
-
       reliabilityIndex = Math.min(reliabilityIndex, 100);
-
-      //// Calculate Reliability Index
-      //let delayFactor = 1 - (avgDelay / 90);
-      //// optionally clamp delayFactor so that >90 days becomes negative; we'll allow negative effect but then clamp final index
-      //const savingsFactor = totalCost === 0 ? 0 : (totalSavings / totalCost);
-
-      //let reliabilityIndex = delayFactor * savingsFactor * 100;
-
-      //// clamp to 0..100 (avoid negative or >100)
-      //if (reliabilityIndex > 100) reliabilityIndex = 100;
-      //if (reliabilityIndex < 0) reliabilityIndex = 0;
-
-      //// round reliability to 2 decimals for readability
-      //reliabilityIndex = Math.round(reliabilityIndex * 100) / 100;
 
       return {
         Contractor: contractorName,
         NumProjects: group.NumProjects,
-        //TotalContractCost: group.TotalContractCost,
-        AverageCompletionDelayDays: avgDelay,
-        TotalCostSavings: totalSavings,
-        TotalContractCost: totalCost,
-        ReliabilityIndex: reliabilityIndex,
+        AverageCompletionDelayDays: Number(avgDelay.toFixed(2)),
+        TotalCostSavings: Number(totalSavings.toFixed(2)),
+        TotalContractCost: Number(totalCost.toFixed(2)),
+        ReliabilityIndex: Number(reliabilityIndex.toFixed(2)),
       }
     })
-    // console.log(processedData)
 
     // Filter for contractors with >= 5 projects
     const filteredReport = processedData.filter((contractor) => contractor.NumProjects >= 5);
 
-
     // Sort by TotalContractCost (desc)
-    const orderedReport = filteredReport.sort((a, b) => b.TotalContractCost - a.TotalContractCost)
+    const orderedReport = filteredReport.sort((a, b) => {
+      const costA = parseFloat(a.TotalContractCost) || 0;
+      const costB = parseFloat(b.TotalContractCost) || 0;
+      return costB - costA;
+    });
 
-
-    
     // take top 15 using slice
     const top15Reports = orderedReport.slice(0, 15);
-    
+
     const finalReport = top15Reports.map((contractor, index) => ({
       Rank: index + 1,
       Contractor: contractor.Contractor,
+      TotalContractCost: contractor.TotalContractCost,
       NumProjects: contractor.NumProjects,
       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
-      TotalContractCost: contractor.TotalContractCost,
       TotalCostSavings: contractor.TotalCostSavings,
       ReliabilityIndex: contractor.ReliabilityIndex,
       // Flag <50 as "High Risk"
@@ -455,100 +418,397 @@ class ReportManager {
     return finalReport;
   }
 
+  // REQ-0007 - Report 2: Top Contractors Performance Ranking
+  //rank top 15 contractors by total Contract Cost
+  // (Descending, filter >= 5 projects)
+  // Needed columns: numProjects, AverageCompletionDelayDays, totalCostSavings, Reliability index
+  // generateContractorPerformanceRanking(filteredData) {
+  //   // groupedByContractors???
+  //   // use reduce not groupby (to aggregate.)
+  //   // acc is the object we are building, proj current item in the array being processed
+  //   const groupedByContractors = filteredData.reduce((acc, project) => {
+  //     // this will be the key
+  //     const contractorName = project.Contractor
+  //
+  //     if (!acc[contractorName]) {
+  //       acc[contractorName] = {
+  //         NumProjects: 0,
+  //         TotalContractCost: 0,
+  //         TotalCostSavings: 0,
+  //         TotalCompletionDelayDays: 0
+  //       }
+  //     } 
+  //
+  //     // Update values for contractor
+  //     acc[contractorName].NumProjects += 1;
+  //     // acc[contractorName].TotalContractCost += Number(project.ContractCost);
+  //     // acc[contractorName].TotalCostSavings += Number(project.CostSavings)
+  //     acc[contractorName].TotalContractCost += Number.isFinite(project.ContractCost) ? project.ContractCost : 0;
+  //     acc[contractorName].TotalCostSavings += Number.isFinite(project.CostSavings) ? project.CostSavings : 0;
+  //     //acc[contractorName].TotalCompletionDelayDays += project.CompletionDelayDays;
+  //     acc[contractorName].TotalCompletionDelayDays += Number.isFinite(project.CompletionDelayDays) ? project.CompletionDelayDays : 0;
+  //
+  //
+  //
+  //     return acc;
+  //   }, {})
+  //   // outputs correctly
+  //   //console.log(groupedByContractors)
+  //
+  //   // 2017 contractors in the sheets, and 2017 here also
+  //
+  //   const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
+  //     const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
+  //     // TODO duplicate but just to double check
+  //     const totalCost = Number(group.TotalContractCost);
+  //     const totalSavings = group.TotalCostSavings;
+  //
+  //     // Calculate Reliability Index: (1 - (avg delay / 90)) * (total savings / total cost) * 100
+  //     const delayFactor = (1 - (avgDelay / 90));
+  //     const savingsFactor = (totalCost === 0) ? 0 : (totalSavings / totalCost);
+  //
+  //     let reliabilityIndex = delayFactor * savingsFactor * 100;
+  //
+  //     reliabilityIndex = Math.min(reliabilityIndex, 100);
+  //
+  //     //// Calculate Reliability Index
+  //     //let delayFactor = 1 - (avgDelay / 90);
+  //     //// optionally clamp delayFactor so that >90 days becomes negative; we'll allow negative effect but then clamp final index
+  //     //const savingsFactor = totalCost === 0 ? 0 : (totalSavings / totalCost);
+  //
+  //     //let reliabilityIndex = delayFactor * savingsFactor * 100;
+  //
+  //     //// clamp to 0..100 (avoid negative or >100)
+  //     //if (reliabilityIndex > 100) reliabilityIndex = 100;
+  //     //if (reliabilityIndex < 0) reliabilityIndex = 0;
+  //
+  //     //// round reliability to 2 decimals for readability
+  //     //reliabilityIndex = Math.round(reliabilityIndex * 100) / 100;
+  //
+  //     return {
+  //       Contractor: contractorName,
+  //       NumProjects: group.NumProjects,
+  //       //TotalContractCost: group.TotalContractCost,
+  //       AverageCompletionDelayDays: avgDelay,
+  //       TotalCostSavings: totalSavings,
+  //       TotalContractCost: totalCost,
+  //       ReliabilityIndex: reliabilityIndex,
+  //     }
+  //   })
+  //   // console.log(processedData)
+  //
+  //   // Filter for contractors with >= 5 projects
+  //   const filteredReport = processedData.filter((contractor) => contractor.NumProjects >= 5);
+  //
+  //
+  //   // Sort by TotalContractCost (desc)
+  //   //const orderedReport = filteredReport.sort((a, b) => b.TotalContractCost - a.TotalContractCost)
+  //   const orderedReport = filteredReport.sort((a, b) => {
+  //     const costA = parseFloat(a.TotalContractCost) || 0;
+  //     const costB = parseFloat(b.TotalContractCost) || 0;
+  //     return costB - costA;
+  //   });
+  //
+  //
+  //
+  //   // take top 15 using slice
+  //   const top15Reports = orderedReport.slice(0, 15);
+  //
+  //   const finalReport = top15Reports.map((contractor, index) => ({
+  //     Rank: index + 1,
+  //     Contractor: contractor.Contractor,
+  //     TotalContractCost: contractor.TotalContractCost,
+  //     NumProjects: contractor.NumProjects,
+  //     AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
+  //     TotalCostSavings: contractor.TotalCostSavings,
+  //     ReliabilityIndex: contractor.ReliabilityIndex,
+  //     // Flag <50 as "High Risk"
+  //     RiskFlag: contractor.ReliabilityIndex < 50 ? "High Risk" : contractor.ReliabilityIndex, 
+  //   }));
+  //
+  //   return finalReport;
+  // }
+
+  // unneeded this dont work
+//   generateContractorPerformanceRanking(filteredData) {
+//     const groupedByContractors = filteredData.reduce((acc, project) => {
+//       const contractorName = project.Contractor
+//
+//       if (project.Contractor === 'LEGACY CONSTRUCTION CORPORATION (FORMERLY: LEGACY CONSTRUCTION)') {
+//   console.log('CostSavings value:', project.CostSavings, 'Type:', typeof project.CostSavings, 'isFinite:', Number.isFinite(project.CostSavings));
+// }
+//
+//
+//       if (!acc[contractorName]) {
+//         acc[contractorName] = {
+//           NumProjects: 0,
+//           TotalContractCost: 0,
+//           TotalCostSavings: 0,
+//           TotalCompletionDelayDays: 0
+//         }
+//       } 
+//
+//       // Update values for contractor
+//       acc[contractorName].NumProjects += 1;
+//       acc[contractorName].TotalContractCost += Number.isFinite(project.ContractCost) ? project.ContractCost : 0;
+//       acc[contractorName].TotalCostSavings += Number.isFinite(project.CostSavings) ? project.CostSavings : 0;
+//       acc[contractorName].TotalCompletionDelayDays += Number.isFinite(project.CompletionDelayDays) ? project.CompletionDelayDays : 0;
+//
+//       return acc;
+//     }, {})
+//     console.log('Sample contractor data:', groupedByContractors['LEGACY CONSTRUCTION CORPORATION (FORMERLY: LEGACY CONSTRUCTION)']);
+//
+//
+//     const processedData = Object.entries(groupedByContractors).map(([contractorName, group]) => {
+//       const avgDelay = group.TotalCompletionDelayDays / group.NumProjects;
+//       const totalCost = group.TotalContractCost;
+//       const totalSavings = group.TotalCostSavings;
+//
+//       // Calculate Reliability Index: (1 - (avg delay / 90)) * (total savings / total cost) * 100
+//       const delayFactor = (1 - (avgDelay / 90));
+//       const savingsFactor = (totalCost === 0) ? 0 : (totalSavings / totalCost);
+//
+//       let reliabilityIndex = delayFactor * savingsFactor * 100;
+//
+//       // Clamp to 0-100 range
+//       reliabilityIndex = Math.max(0, Math.min(reliabilityIndex, 100));
+//
+//       // Round to 2 decimal places
+//       reliabilityIndex = Math.round(reliabilityIndex * 100) / 100;
+//
+//       return {
+//         Contractor: contractorName,
+//         NumProjects: group.NumProjects,
+//         AverageCompletionDelayDays: Math.round(avgDelay * 100) / 100,
+//         TotalCostSavings: Math.round(totalSavings * 100) / 100,
+//         TotalContractCost: Math.round(totalCost * 100) / 100,
+//         ReliabilityIndex: reliabilityIndex,
+//       }
+//     })
+//
+//     // Filter for contractors with >= 5 projects
+//     const filteredReport = processedData.filter((contractor) => contractor.NumProjects >= 5);
+//
+//     // Sort by TotalContractCost (desc)
+//     const orderedReport = filteredReport.sort((a, b) => {
+//       const costA = parseFloat(a.TotalContractCost) || 0;
+//       const costB = parseFloat(b.TotalContractCost) || 0;
+//       return costB - costA;
+//     });
+//
+//     // Take top 15
+//     const top15Reports = orderedReport.slice(0, 15);
+//
+//     const finalReport = top15Reports.map((contractor, index) => ({
+//       Rank: index + 1,
+//       Contractor: contractor.Contractor,
+//       TotalContractCost: contractor.TotalContractCost,
+//       NumProjects: contractor.NumProjects,
+//       AverageCompletionDelayDays: contractor.AverageCompletionDelayDays,
+//       TotalCostSavings: contractor.TotalCostSavings,
+//       ReliabilityIndex: contractor.ReliabilityIndex,
+//       RiskFlag: contractor.ReliabilityIndex < 50 ? "High Risk" : "Normal"
+//     }));
+//
+//     return finalReport;
+//   }
+
+
+
+
 //   Provision to generate Report 3: Annual Project Type Cost Overrun Trends. Group by
 // FundingYear and TypeOfWork, computing the following:
 // ● total projects
 // ● average CostSavings (negative if overrun)
 // ● overrun rate (% with negative savings)
 // ● yeagenerateContractorPerformanceRankingr-over-year % change in average savings (2021 baseline).
+  // generateAnnualOverrunTrends(filteredData) {
+  //
+  //   const groupedData = filteredData.reduce((acc, record) => {
+  //     const key = `${record.FundingYear}|${record.TypeOfWork}`;
+  //
+  //     if(!acc[key]){
+  //      acc[key]  = {
+  //         FundingYear: record.FundingYear,
+  //         TypeOfWork: record.TypeOfWork,
+  //         projects: []
+  //       }
+  //     }
+  //
+  //     acc[key].projects.push(record)
+  //     return acc;
+  //   }, {})
+  //
+  //   // process and aggregate data
+  //   const aggregatedData = Object.values(groupedData).map(group => {
+  //     const totalProjects = group.projects.length
+  //
+  //     const stats = group.projects.reduce((projectAcc, project) => {
+  //       const savings = parseFloat(project.CostSavings) || 0; // ensure CostSavings is a num
+  //       projectAcc.sumCostSavings += savings;
+  //       if (savings < 0) {
+  //         projectAcc.overrunCount++
+  //       }
+  //       return projectAcc;
+  //     }, {
+  //         // initialize the accumulator
+  //         sumCostSavings: 0,
+  //         overrunCount: 0
+  //       });
+  //
+  //     // calc averages and rates for the group
+  //     const averageCostSavings = (stats.sumCostSavings / totalProjects) || 0;
+  //     const overrunRate = (stats.overrunCount / totalProjects) * 100 || 0; 
+  //
+  //     return {
+  //       FundingYear: group.FundingYear,
+  //       TypeOfWork: group.TypeOfWork,
+  //       TotalProjects: totalProjects,
+  //       AverageCostSavings: averageCostSavings,
+  //       OverrunRate: overrunRate
+  //     };
+  //   })
+  //
+  //   // calculate YoY change vs 2021
+  //   // create lookup map for 2021 baseline avg savings
+  //   const baselineMap = new Map();
+  //   aggregatedData
+  //     .filter(d => d.FundingYear == 2021)
+  //     .forEach(d => {
+  //       // set (key, val)
+  //       baselineMap.set(d.TypeOfWork, d.AverageCostSavings);
+  //     })
+  //
+  //   const finalData = aggregatedData.map(d => {
+  //     //const baselineSavings = baselineMap.get(d.AverageCostSavings);
+  //     const baselineSavings = baselineMap.get(d.TypeOfWork);
+  //     let yoyChange = null; 
+  //
+  //     if (d.FundingYear == 2021) {
+  //       yoyChange = 0;
+  //     } else if (baselineSavings != null) {
+  //       if (baselineSavings === 0) {
+  //         yoyChange = (d.AverageCostSavings === 0) ? 0 : null
+  //       } else {
+  //         yoyChange = ((d.AverageCostSavings - baselineSavings) / Math.abs(baselineSavings)) * 100;
+  //       }
+  //     }
+  //
+  //     return {
+  //       ...d,
+  //       'YoY % Change (vs 2021)': yoyChange
+  //     };
+  //   })
+  //
+  //   // return final data
+  //   // return finalData.sort((a,b) => {
+  //   //   if (a.FundingYear !== b.FundingYear) {
+  //   //     return a.FundingYear - b.FundingYear;
+  //   //   }
+  //   //   return a.TypeOfWork.localeCompare(b.TypeOfWork);
+  //   // });
+  //
+  //   // Sort by year ascending, then by average savings descending
+  // return finalData.sort((a, b) => {
+  //   // First, compare by FundingYear (ascending)
+  //   if (a.FundingYear !== b.FundingYear) {
+  //     return a.FundingYear - b.FundingYear;
+  //   }
+  //   // Within same year, compare by AverageCostSavings (descending)
+  //   return b.AverageCostSavings - a.AverageCostSavings;
+  //   });
+  //
+  //
+  // }
+  //
+  //
+
+
   generateAnnualOverrunTrends(filteredData) {
 
-    const groupedData = filteredData.reduce((acc, record) => {
-      const key = `${record.FundingYear}|${record.TypeOfWork}`;
+  // Utility: Clean numeric CostSavings safely
+  const toNumber = (value) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === "number") return value;
 
-      if(!acc[key]){
-       acc[key]  = {
-          FundingYear: record.FundingYear,
-          TypeOfWork: record.TypeOfWork,
-          projects: []
-        }
-      }
+    // Remove commas, currency symbols, spaces
+    const cleaned = String(value).replace(/[₱$,]/g, "").trim();
 
-      acc[key].projects.push(record)
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // 1. Group by FundingYear + TypeOfWork
+  const grouped = filteredData.reduce((acc, r) => {
+    const key = `${r.FundingYear}|${r.TypeOfWork}`;
+    if (!acc[key]) {
+      acc[key] = {
+        FundingYear: r.FundingYear,
+        TypeOfWork: r.TypeOfWork,
+        projects: []
+      };
+    }
+    acc[key].projects.push(r);
+    return acc;
+  }, {});
+
+  // 2. Aggregate
+  const aggregated = Object.values(grouped).map(group => {
+    const totalProjects = group.projects.length;
+
+    const stats = group.projects.reduce((acc, p) => {
+      const savings = toNumber(p.CostSavings);
+
+      acc.sumCostSavings += savings;
+      if (savings < 0) acc.overrunCount++;
+
       return acc;
-    }, {})
+    }, { sumCostSavings: 0, overrunCount: 0 });
 
-    // process and aggregate data
-    const aggregatedData = Object.values(groupedData).map(group => {
-      const totalProjects = group.projects.length
+    return {
+      FundingYear: group.FundingYear,
+      TypeOfWork: group.TypeOfWork,
+      TotalProjects: totalProjects,
+      AverageCostSavings: stats.sumCostSavings / totalProjects,
+      OverrunRate: (stats.overrunCount / totalProjects) * 100
+    };
+  });
 
-      const stats = group.projects.reduce((projectAcc, project) => {
-        const savings = parseFloat(project.CostSavings) || 0; // ensure CostSavings is a num
-        projectAcc.sumCostSavings += savings;
-        if (savings < 0) {
-          projectAcc.overrunCount++
-        }
-        return projectAcc;
-      }, {
-          // initialize the accumulator
-          sumCostSavings: 0,
-          overrunCount: 0
-        });
+  // 3. Build 2021 baseline
+  const baseline = new Map();
+  aggregated
+    .filter(x => x.FundingYear == 2021)
+    .forEach(x => baseline.set(x.TypeOfWork, x.AverageCostSavings));
 
-      // calc averages and rates for the group
-      const averageCostSavings = (stats.sumCostSavings / totalProjects) || 0;
-      const overrunRate = (stats.overrunCount / totalProjects) * 100 || 0; 
+  // 4. Compute YoY % change
+  const final = aggregated.map(d => {
+    const base = baseline.get(d.TypeOfWork);
+    let yoy = null;
 
-      return {
-        FundingYear: group.FundingYear,
-        TypeOfWork: group.TypeOfWork,
-        TotalProjects: totalProjects,
-        AverageCostSavings: averageCostSavings,
-        OverrunRate: overrunRate
-      };
-    })
-
-    // calculate YoY change vs 2021
-    // create lookup map for 2021 baseline avg savings
-    const baselineMap = new Map();
-    aggregatedData
-      .filter(d => d.FundingYear == 2021)
-      .forEach(d => {
-        // set (key, val)
-        baselineMap.set(d.TypeOfWork, d.AverageCostSavings);
-      })
-
-    const finalData = aggregatedData.map(d => {
-      //const baselineSavings = baselineMap.get(d.AverageCostSavings);
-      const baselineSavings = baselineMap.get(d.TypeOfWork);
-      let yoyChange = null; 
-
-      if (d.FundingYear == 2021) {
-        yoyChange = 0;
-      } else if (baselineSavings != null) {
-        if (baselineSavings === 0) {
-          yoyChange = (d.AverageCostSavings === 0) ? 0 : null
-        } else {
-          yoyChange = ((d.AverageCostSavings - baselineSavings) / Math.abs(baselineSavings)) * 100;
-        }
+    if (d.FundingYear == 2021) {
+      yoy = 0;
+    } else if (base !== undefined && base !== null) {
+      if (base === 0) {
+        yoy = d.AverageCostSavings === 0 ? 0 : null;
+      } else {
+        yoy = ((d.AverageCostSavings - base) / Math.abs(base)) * 100;
       }
+    }
 
-      return {
-        ...d,
-        'YoY % Change (vs 2021)': yoyChange
-      };
-    })
-    
-    // return final data
-    return finalData.sort((a,b) => {
-      if (a.FundingYear !== b.FundingYear) {
-        return a.FundingYear - b.FundingYear;
-      }
-      return a.TypeOfWork.localeCompare(b.TypeOfWork);
-    });
+    return {
+      ...d,
+      "YoY % Change (vs 2021)": yoy
+    };
+  });
 
-  }
-
+  // 5. Sort by Year ASC, AvgSavings DESC
+  return final.sort((a, b) => {
+    if (a.FundingYear !== b.FundingYear) {
+      return a.FundingYear - b.FundingYear;
+    }
+    return b.AverageCostSavings - a.AverageCostSavings;
+  });
+}
 
   generateSummaryJSON(allRecords) {
     const totalProjects = allRecords.length;
@@ -758,14 +1018,6 @@ class App {
     console.log('file loaded!')
   }
 
-  // Generate records. Have helper class to handle the display of records, and just call it.
-  handleDisplayCSV() {
-    // Right now just loads the first entry form the data.
-    //for (let j = 0; j <= 2; j++) {
-    //console.log('sample record', this.data[j]);
-    //}
-    //console.log(this.data)
-  }
 
 
   // make sure to call await when using the write csvFile
